@@ -1,0 +1,10 @@
+# Fixed thresholds for the gate tests, so editing ml/fairness_thresholds.yaml
+# cannot change test outcomes.
+attributes:
+  - sex
+  - age_group
+gated_metrics:
+  demographic_parity_difference:
+    max: 0.10
+  equalized_odds_difference:
+    max: 0.10
