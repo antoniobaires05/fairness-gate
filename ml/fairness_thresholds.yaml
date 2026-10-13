@@ -1,0 +1,23 @@
+# Fairness gate thresholds -- edit freely; ml/fairness_eval.py reads this at run time.
+#
+# A gated metric FAILS the build when its value is greater than `max`.
+# Both metrics are differences between the best- and worst-treated group,
+# from 0 (identical treatment) to 1.
+#
+# NOTE: 0.10 is a common starting point, not a legal or regulatory standard.
+# Set these with your client.
+
+# Columns in ml/reports/predictions.csv to audit.
+# Rows where the attribute is missing are excluded from that attribute's metrics
+# (South German Credit: sex is unknown for ~31% of rows -- see ml/ingest.py).
+attributes:
+  - sex
+  - age_group
+
+gated_metrics:
+  # Gap in approval (selection) rate between groups.
+  demographic_parity_difference:
+    max: 0.10
+  # Larger of the gaps in true-positive rate and false-positive rate between groups.
+  equalized_odds_difference:
+    max: 0.10

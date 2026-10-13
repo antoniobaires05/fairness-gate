@@ -1,4 +1,6 @@
+fairlearn==0.15.0
 numpy==2.5.4
 pandas==3.0.6
 pytest==9.1.1
+PyYAML==6.0.3
 scikit-learn==1.9.1
