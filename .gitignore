@@ -1,6 +1,8 @@
 # --- Data -------------------------------------------------------------------
-# Datasets are never committed (see CLAUDE.md); CI downloads them.
-data/
+# Datasets are never committed (see docs/PROJECT_GUIDE.md); CI downloads them.
+# data/* (not data/) so the README exception below can take effect.
+data/*
+!data/README.md
 *.asc
 *.zip
 
@@ -8,11 +10,15 @@ data/
 # predictions.csv and fairness_report.json are rebuilt by ml/train.py and
 # ml/fairness_eval.py on every run; CI uploads them as build artifacts.
 ml/reports/
+*.pkl
+*.joblib
 
 # --- Credentials -------------------------------------------------------------
 # Secrets live in GitHub Secrets / Azure Key Vault, never in the repo.
 .env
 .env.*
+*.env
+.azure/
 *.pem
 *.key
 *.pfx
@@ -32,7 +38,7 @@ dist/
 htmlcov/
 .ipynb_checkpoints/
 
-# --- Node (pipeline/run_gate.js) --------------------------------------------
+# --- Node (pipeline/ and dashboard/ later) -----------------------------------
 node_modules/
 
 # --- Editors / OS -------------------------------------------------------------
