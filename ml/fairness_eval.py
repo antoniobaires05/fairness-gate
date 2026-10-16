@@ -121,13 +121,14 @@ def _widest_gap(y_true, y_pred, groups, metric: str) -> dict:
         y_pred=y_pred,
         sensitive_features=groups,
     ).by_group
-    rate = (frame.max() - frame.min()).idxmax()
+    rate = str((frame.max() - frame.min()).idxmax())
+    values = frame[rate]
     return {
         "rate": rate,
-        "high_group": str(frame[rate].idxmax()),
-        "high_value": float(frame[rate].max()),
-        "low_group": str(frame[rate].idxmin()),
-        "low_value": float(frame[rate].min()),
+        "high_group": str(values.idxmax()),
+        "high_value": float(values.max()),
+        "low_group": str(values.idxmin()),
+        "low_value": float(values.min()),
     }
 
 
@@ -180,7 +181,7 @@ def format_failure(r: dict) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description="Fairness gate: audit model predictions per protected attribute.")
     parser.add_argument("--predictions", type=Path, default=PREDICTIONS_PATH)
     parser.add_argument("--thresholds", type=Path, default=THRESHOLDS_PATH)
     parser.add_argument("--report", type=Path, default=REPORT_PATH)
