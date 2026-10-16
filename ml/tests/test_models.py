@@ -50,14 +50,6 @@ def test_honest_models_ignore_protected_columns(name, dataset):
     np.testing.assert_array_equal(model.predict_proba(dataset.frame), model.predict_proba(shuffled))
 
 
-def test_biased_vendor_penalizes_only_the_target_group(dataset):
-    honest = fit("vendor_a_logreg", dataset).predict_proba(dataset.frame)
-    biased = fit("vendor_c_biased", dataset).predict_proba(dataset.frame)
-    target = dataset.frame["race"].eq("Black or African American").fillna(False).to_numpy(dtype=bool)
-    assert (biased[target] < honest[target]).all()
-    np.testing.assert_allclose(biased[~target], honest[~target], rtol=1e-9)
-
-
 def test_mitigated_model_uses_protected_columns(dataset):
     model = fit("vendor_a_mitigated", dataset)
     assert set(model._sensitive(dataset.frame)) <= model.cells | {model.SMALL}

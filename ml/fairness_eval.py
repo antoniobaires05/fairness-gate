@@ -47,7 +47,7 @@ from ml.confidence import bootstrap_gaps, wilson_interval
 ML_DIR = Path(__file__).resolve().parent
 THRESHOLDS_PATH = ML_DIR / "fairness_thresholds.yaml"
 REPORTS_DIR = ML_DIR / "reports"
-DEFAULT_DATASET = "german_credit"
+DEFAULT_DATASET = "hmda"
 DEFAULT_MODEL = "vendor_a_logreg"
 
 GATED_METRICS = {

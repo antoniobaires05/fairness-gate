@@ -1,7 +1,7 @@
 """Train one model on one dataset and save its test-set predictions.
 
 Usage:
-    python -m ml.train [--dataset german_credit|hmda] [--model NAME] [--out PATH]
+    python -m ml.train [--dataset hmda] [--model NAME] [--out PATH]
 
 Writes ml/reports/<dataset>/<model>/predictions.csv with one row per test example:
     row_id, y_true, y_pred, y_prob, <protected columns...>
@@ -28,7 +28,7 @@ from ml.models import MODELS, CreditModel, build_model
 SEED = 42
 TEST_SIZE = 0.3
 REPORTS_DIR = Path(__file__).resolve().parent / "reports"
-DEFAULT_DATASET = "german_credit"
+DEFAULT_DATASET = "hmda"
 DEFAULT_MODEL = "vendor_a_logreg"
 
 

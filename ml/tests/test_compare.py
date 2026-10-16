@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from ml import compare, ingest, train
+from ml import compare, ingest_hmda, train
 from ml.fairness_eval import GateConfigError
 
 
@@ -58,21 +58,21 @@ def test_unknown_model_in_policy_rejected(tmp_path):
         compare.load_policy(path, "hmda")
 
 
-# --- end to end (real German file) -------------------------------------------------
+# --- end to end (real HMDA file) ---------------------------------------------------
 
 
-@pytest.mark.skipif(not ingest.DEFAULT_PATH.exists(), reason="German credit file not present")
+@pytest.mark.skipif(not ingest_hmda.DEFAULT_PATH.exists(), reason="HMDA file not downloaded")
 def test_exit_code_follows_champion(tmp_path, monkeypatch):
     monkeypatch.setattr(train, "REPORTS_DIR", tmp_path)
-    assert compare.main(["--dataset", "german_credit"]) == 1  # vendor A fails on German
-    result = json.loads((tmp_path / "german_credit" / "comparison.json").read_text())
+    assert compare.main(["--dataset", "hmda"]) == 1  # vendor A fails on HMDA
+    result = json.loads((tmp_path / "hmda" / "comparison.json").read_text())
     assert {m["model"] for m in result["models"]} == {
-        "vendor_a_logreg", "vendor_b_gbm", "vendor_c_biased", "vendor_a_mitigated"}
+        "vendor_a_logreg", "vendor_b_gbm", "vendor_a_mitigated"}
     assert sum(m["role"] == "champion" for m in result["models"]) == 1
-    assert (tmp_path / "german_credit" / "comparison.csv").exists()
+    assert (tmp_path / "hmda" / "comparison.csv").exists()
     # one build = one run id, shared by every model's report (the warehouse's DimRun key)
     run = result["run"]
     assert run["champion"] == "vendor_a_logreg" and run["build_passed"] is False
     for m in result["models"]:
-        report = json.loads((tmp_path / "german_credit" / m["model"] / "fairness_report.json").read_text())
+        report = json.loads((tmp_path / "hmda" / m["model"] / "fairness_report.json").read_text())
         assert {r["run_id"] for r in report} == {run["run_id"]}

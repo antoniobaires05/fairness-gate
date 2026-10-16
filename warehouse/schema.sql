@@ -10,7 +10,7 @@
   DIMENSIONS (surrogate INT keys; natural keys are UNIQUE)
     DimDate     calendar day of the build             natural key: DateKey = yyyymmdd
     DimRun      one CI build / local run              natural key: RunId
-    DimDataset  german_credit, hmda                    natural key: DatasetName
+    DimDataset  hmda                                   natural key: DatasetName
     DimModel    vendor models                          natural key: ModelName   (SCD type 1)
     DimGroup    protected attribute + group            natural key: (AttributeName, GroupName)
     DimMetric   accuracy ... equalized_odds_difference natural key: MetricName

@@ -10,16 +10,13 @@ on:
         description: "Champion model (blank = value in ml/fairness_thresholds.yaml)"
         type: choice
         default: ""
-        options: ["", vendor_a_logreg, vendor_b_gbm, vendor_c_biased, vendor_a_mitigated]
+        options: ["", vendor_a_logreg, vendor_b_gbm, vendor_a_mitigated]
 
 permissions:
   contents: read
 
 env:
-  # data/ is gitignored, so CI downloads the datasets.
-  # South German Credit (corrected), UCI #573 -- static file, hash must match exactly.
-  GERMAN_URL: https://archive.ics.uci.edu/static/public/573/south+german+credit+update.zip
-  GERMAN_SHA256: 5f363343f356ca38a0236baab849e472846399b2176ccc5bd686483dd8a7562f
+  # data/ is gitignored, so CI downloads the dataset.
   # HMDA, Delaware 2024, CFPB Data Browser. CFPB can republish a year's data, so a hash
   # change is a warning (the log shows which file was used), not a failure.
   HMDA_URL: https://ffiec.cfpb.gov/v2/data-browser-api/view/csv?states=DE&years=2024
@@ -43,12 +40,9 @@ jobs:
       - name: Install dependencies
         run: pip install -r ml/requirements.txt
 
-      - name: Fetch datasets
+      - name: Fetch dataset
         run: |
           mkdir -p data/raw/hmda
-          curl -fsSL "$GERMAN_URL" -o /tmp/sgc.zip
-          unzip -o /tmp/sgc.zip SouthGermanCredit.asc -d data/raw
-          echo "$GERMAN_SHA256  data/raw/SouthGermanCredit.asc" | sha256sum --check
           curl -fsSL --retry 3 "$HMDA_URL" -o data/raw/hmda/hmda_2024_DE.csv
           if ! echo "$HMDA_SHA256  data/raw/hmda/hmda_2024_DE.csv" | sha256sum --check; then
             echo "::warning::HMDA file changed upstream: $(sha256sum data/raw/hmda/hmda_2024_DE.csv)"

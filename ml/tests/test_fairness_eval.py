@@ -62,7 +62,7 @@ def run(tmp_path, preds, **threshold_kwargs):
 
 def test_load_thresholds_reads_repo_file():
     config = fe.load_thresholds()
-    assert config["attributes"] == ["sex", "age_group"]
+    assert config["attributes"] == ["race", "ethnicity", "sex", "age_group"]
     assert set(config["gated_metrics"]) == set(fe.GATED_METRICS)
 
 
@@ -122,7 +122,7 @@ def test_missing_attribute_rows_excluded():
 
 def test_unknown_attribute_is_config_error():
     preds = fair_preds()
-    with pytest.raises(fe.GateConfigError, match="age_group"):
+    with pytest.raises(fe.GateConfigError, match="race"):
         fe.evaluate(preds, fe.load_thresholds(), run_id="t")
 
 
@@ -220,10 +220,10 @@ def test_records_name_dataset_and_model():
 
 def test_sectioned_config_resolves_per_dataset():
     hmda = fe.load_thresholds(dataset="hmda")
-    german = fe.load_thresholds(dataset="german_credit")
     assert hmda["attributes"] == ["race", "ethnicity", "sex", "age_group"]
-    assert hmda["min_group_size"] == 100 and german["min_group_size"] == 20
-    assert hmda["gated_metrics"] == german["gated_metrics"]
+    assert hmda["min_group_size"] == 100 and hmda["min_outcome_count"] == 30
+    assert set(hmda["gated_metrics"]) == {"demographic_parity_difference",
+                                          "equalized_odds_difference"}
 
 
 def test_unknown_dataset_section_rejected():

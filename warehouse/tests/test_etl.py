@@ -71,7 +71,7 @@ def test_missing_values_become_null(tmp_path):
 
 
 def test_vendor_names():
-    assert etl.vendor_of("vendor_c_biased") == "Vendor C"
+    assert etl.vendor_of("vendor_b_gbm") == "Vendor B"
     assert etl.vendor_of("custom") == "custom"
 
 

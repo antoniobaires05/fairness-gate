@@ -1,15 +1,12 @@
 """Common interface for credit models, plus stand-in "vendor" models.
 
 Every model sees the full cleaned frame (features AND protected columns), the way
-a third-party vendor's black box would receive an application file. Well-behaved
-models only read dataset.features; the deliberately biased vendor shows what the
-gate exists to catch.
+a third-party vendor's black box would receive an application file. The honest
+models only read dataset.features.
 
 Models:
     vendor_a_logreg     Vendor A: logistic-regression scorecard (the baseline)
     vendor_b_gbm        Vendor B: gradient-boosted trees
-    vendor_c_biased     Vendor C: Vendor A's scores, then a penalty for one protected
-                        group -- deliberate disparate treatment, for testing the gate
     vendor_a_mitigated  Vendor A post-processed by Fairlearn's ThresholdOptimizer
                         (equalized odds), i.e. a fairness-remediated challenger
 """
@@ -32,18 +29,11 @@ from ml.ingest import Dataset
 
 SEED = 42
 
-# Who Vendor C penalizes, per dataset: (protected column, group).
-BIAS_TARGETS = {
-    "german_credit": ("age_group", "<25"),
-    "hmda": ("race", "Black or African American"),
-}
-BIAS_LOGIT_PENALTY = 2.0  # lowers the odds of approval ~7x for the targeted group
-
 # The mitigated challenger equalizes error rates across the intersection of all
 # protected columns (equalizing one attribute alone just moved the gap to another).
 # Intersections with fewer training rows than this are pooled into one group, so
 # thresholds are never fitted to a handful of applicants.
-MITIGATION_MIN_CELL = {"german_credit": 30, "hmda": 100}
+MITIGATION_MIN_CELL = {"hmda": 100}
 
 
 class CreditModel(ABC):
@@ -117,25 +107,6 @@ class VendorBGBM(_SklearnModel):
         )
 
 
-class VendorCBiased(CreditModel):
-    """Vendor A's scores with a fixed penalty for one protected group. FOR TESTING THE GATE."""
-
-    name = "vendor_c_biased"
-    description = "Vendor C: deliberately biased (penalizes one protected group)"
-
-    def fit(self, frame):
-        self.base = VendorALogReg(self.dataset, self.seed).fit(frame)
-        self.attribute, self.group = BIAS_TARGETS[self.dataset.name]
-        return self
-
-    def predict_proba(self, frame):
-        p = np.clip(self.base.predict_proba(frame), 1e-9, 1 - 1e-9)
-        logit = np.log(p / (1 - p))
-        targeted = frame[self.attribute].eq(self.group).fillna(False).to_numpy(dtype=bool)
-        logit[targeted] -= BIAS_LOGIT_PENALTY
-        return 1 / (1 + np.exp(-logit))
-
-
 class VendorAMitigated(CreditModel):
     """Vendor A + group-specific thresholds chosen to equalize TPR and FPR."""
 
@@ -185,7 +156,7 @@ class VendorAMitigated(CreditModel):
 
 
 MODELS: dict[str, type[CreditModel]] = {
-    cls.name: cls for cls in (VendorALogReg, VendorBGBM, VendorCBiased, VendorAMitigated)
+    cls.name: cls for cls in (VendorALogReg, VendorBGBM, VendorAMitigated)
 }
 
 

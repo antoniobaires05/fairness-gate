@@ -34,16 +34,10 @@ defaults:
   # recommended for promotion only if it passes the gate and its accuracy is within
   # max_accuracy_drop of the champion's.
   champion: vendor_a_logreg
-  challengers: [vendor_b_gbm, vendor_c_biased, vendor_a_mitigated]
+  challengers: [vendor_b_gbm, vendor_a_mitigated]
   max_accuracy_drop: 0.05
 
 datasets:
-  # South German Credit: 300 test rows, so groups are small; sex is unknown for ~31%.
-  german_credit:
-    attributes: [sex, age_group]
-    min_group_size: 20
-    min_outcome_count: 5
-
   # HMDA, one state and year (see docs/hmda_data_decisions.md).
   hmda:
     attributes: [race, ethnicity, sex, age_group]
