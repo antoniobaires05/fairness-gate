@@ -43,7 +43,7 @@ The ETL uses Microsoft's `mssql-python` driver. Fill in your server name, login 
 password:
 
 ```
-Server=tcp:<server-name>.database.windows.net,1433;Database=FairnessGates;Uid=<admin-login>;Pwd=<password>;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=60;
+Server=tcp:<server-name>.database.windows.net,1433;Database=FairnessGates;Uid=<admin-login>;Pwd=<password>;Encrypt=yes;TrustServerCertificate=no;
 ```
 
 (The portal's database page has **Connection strings → ODBC** with the same parts.)

@@ -141,3 +141,23 @@ def test_load_is_idempotent_and_dimension_first(tmp_path):
         cur.execute("DELETE FROM dbo.DimRun WHERE RunId = ?", [RUN_ID])
         conn.commit()
         conn.close()
+
+
+# --- connection errors -------------------------------------------------------
+
+
+@pytest.mark.parametrize("cs", [
+    "Server=x;Uid=u;Pwd=s3cr3t!;Database=d;",
+    "Server=x;Uid=u;Password=s3cr3t!;",
+    "Server=x;Uid=u;PWD={s3cr3t!;x};",
+])
+def test_redact_removes_password(cs):
+    assert "s3cr3t" not in etl.redact(f"failed for {cs}", cs)
+
+
+def test_malformed_connection_string_fails_fast_without_leaking_password():
+    cs = "Server=tcp:nosuchserver.invalid,1433;Uid=u;Pwd=s3cr3t!;Connection Timeout=60;"
+    with pytest.raises(etl.EtlError) as err:
+        etl.connect(cs, attempts=4, wait_seconds=60)  # would take minutes if it retried
+    assert "connection timeout" in str(err.value).lower()
+    assert "s3cr3t" not in str(err.value)

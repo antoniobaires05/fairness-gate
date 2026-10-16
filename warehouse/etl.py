@@ -118,8 +118,19 @@ def extract(dataset: str, reports_dir: Path = REPORTS_DIR) -> BuildLoad:
 # --- Load ----------------------------------------------------------------------------
 
 
+def redact(message: str, connection_string: str) -> str:
+    """Remove the password (Pwd=/Password=) from anything we print."""
+    for secret in re.findall(r"(?i)(?:^|;)\s*(?:pwd|password)\s*=\s*(\{.*?\}|[^;]*)", connection_string):
+        if secret:
+            message = message.replace(secret, "***").replace(secret.strip("{}"), "***")
+    return message
+
+
 def connect(connection_string: str, attempts: int = 4, wait_seconds: float = 20.0):
-    """Connect, retrying: a paused Azure SQL free/serverless database takes ~1 min to wake."""
+    """Connect, retrying: a paused Azure SQL free/serverless database takes ~1 min to wake.
+
+    A malformed connection string fails immediately -- retrying cannot fix it.
+    """
     import time
 
     import mssql_python  # imported here so extract/transform work without the driver
@@ -127,10 +138,14 @@ def connect(connection_string: str, attempts: int = 4, wait_seconds: float = 20.
     for attempt in range(1, attempts + 1):
         try:
             return mssql_python.connect(connection_string)
+        except mssql_python.ConnectionStringParseError as e:
+            raise EtlError("connection string is malformed: "
+                           + redact(" ".join(str(e).split()), connection_string)) from None
         except Exception as e:  # driver raises its own error types
+            reason = redact(" ".join(str(e).split()), connection_string)[:300]
             if attempt == attempts:
-                raise EtlError(f"could not connect after {attempts} attempts: {type(e).__name__}") from None
-            print(f"connect attempt {attempt} failed ({type(e).__name__}); retrying in {wait_seconds:.0f}s")
+                raise EtlError(f"could not connect after {attempts} attempts: {reason}") from None
+            print(f"connect attempt {attempt} failed ({reason}); retrying in {wait_seconds:.0f}s")
             time.sleep(wait_seconds)
 
 
