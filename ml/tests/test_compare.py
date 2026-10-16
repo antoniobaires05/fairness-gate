@@ -70,3 +70,9 @@ def test_exit_code_follows_champion(tmp_path, monkeypatch):
         "vendor_a_logreg", "vendor_b_gbm", "vendor_c_biased", "vendor_a_mitigated"}
     assert sum(m["role"] == "champion" for m in result["models"]) == 1
     assert (tmp_path / "german_credit" / "comparison.csv").exists()
+    # one build = one run id, shared by every model's report (the warehouse's DimRun key)
+    run = result["run"]
+    assert run["champion"] == "vendor_a_logreg" and run["build_passed"] is False
+    for m in result["models"]:
+        report = json.loads((tmp_path / "german_credit" / m["model"] / "fairness_report.json").read_text())
+        assert {r["run_id"] for r in report} == {run["run_id"]}

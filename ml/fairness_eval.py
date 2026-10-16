@@ -311,10 +311,16 @@ def print_summary(records: list[dict], failures: list[dict]) -> None:
         print(f"note: {n} rows with missing '{attribute}' excluded from its metrics")
 
 
+def new_run_id() -> str:
+    """One id per build: GitHub run id + attempt in CI, a UTC timestamp locally."""
+    if os.environ.get("GITHUB_RUN_ID"):
+        return f"{os.environ['GITHUB_RUN_ID']}.{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}"
+    return datetime.now(timezone.utc).strftime("local-%Y%m%dT%H%M%SZ")
+
+
 def run_gate(preds: pd.DataFrame, thresholds: dict, report: Path, dataset: str,
-             model: str) -> tuple[list[dict], list[dict]]:
-    run_id = os.environ.get("GITHUB_RUN_ID") or datetime.now(timezone.utc).strftime("local-%Y%m%dT%H%M%SZ")
-    records, failures = evaluate(preds, thresholds, run_id, dataset, model)
+             model: str, run_id: str | None = None) -> tuple[list[dict], list[dict]]:
+    records, failures = evaluate(preds, thresholds, run_id or new_run_id(), dataset, model)
     report.parent.mkdir(parents=True, exist_ok=True)
     report.write_text(json.dumps(records, indent=2))
     return records, failures

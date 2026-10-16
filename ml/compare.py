@@ -19,7 +19,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -31,6 +34,7 @@ from ml.fairness_eval import (
     GateConfigError,
     format_failure,
     load_thresholds,
+    new_run_id,
     run_gate,
 )
 from ml.models import MODELS
@@ -81,19 +85,22 @@ def compare(dataset_name: str, thresholds_path: Path = THRESHOLDS_PATH,
     thresholds = load_thresholds(thresholds_path, dataset_name)
     policy = load_policy(thresholds_path, dataset_name)
     champion = champion or policy["champion"]
-    challengers = [m for m in policy["challengers"] if m != champion]
+    # When the champion is overridden, the configured champion becomes a challenger.
+    candidates = [policy["champion"], *policy["challengers"]]
+    challengers = [m for m in dict.fromkeys(candidates) if m != champion]
     if champion not in MODELS:
         raise GateConfigError(f"unknown champion '{champion}'")
 
     dataset = ingest.load_dataset(dataset_name)
+    run_id = new_run_id()  # shared by every model in this build
     rows = []
     for role, name in [("champion", champion), *[("challenger", m) for m in challengers]]:
         predictions = train.run(dataset, name)
         report = train.predictions_path(dataset_name, name).parent / "fairness_report.json"
-        records, failures = run_gate(predictions, thresholds, report, dataset_name, name)
+        records, failures = run_gate(predictions, thresholds, report, dataset_name, name, run_id)
         gated = {r["metric"] + "@" + r["attribute"]: r for r in records if r["gated"]}
         rows.append({
-            "run_id": records[0]["run_id"],
+            "run_id": run_id,
             "dataset": dataset_name,
             "model": name,
             "role": role,
@@ -109,12 +116,37 @@ def compare(dataset_name: str, thresholds_path: Path = THRESHOLDS_PATH,
     return rows, decide(rows, champion, policy["max_accuracy_drop"])
 
 
+def _git(*args: str) -> str | None:
+    try:
+        out = subprocess.run(["git", *args], capture_output=True, text=True, timeout=10,
+                             cwd=Path(__file__).resolve().parents[1])
+        return out.stdout.strip() or None
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+def build_info(rows: list[dict], dataset_name: str) -> dict:
+    """Who/what/when for this build -- becomes a row in the warehouse's DimRun."""
+    champ = next(r for r in rows if r["role"] == "champion")
+    return {
+        "run_id": champ["run_id"],
+        "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "dataset": dataset_name,
+        "champion": champ["model"],
+        "build_passed": champ["gate_passed"],
+        "commit_sha": os.environ.get("GITHUB_SHA") or _git("rev-parse", "HEAD"),
+        "branch": os.environ.get("GITHUB_REF_NAME") or _git("rev-parse", "--abbrev-ref", "HEAD"),
+        "trigger": os.environ.get("GITHUB_EVENT_NAME", "local"),
+    }
+
+
 def write_outputs(rows: list[dict], decision: dict, dataset_name: str) -> Path:
     out_dir = train.REPORTS_DIR / dataset_name
     out_dir.mkdir(parents=True, exist_ok=True)
     for r in rows:
         r["recommended"] = r["model"] == decision["model"]
-    (out_dir / "comparison.json").write_text(json.dumps({"decision": decision, "models": rows}, indent=2))
+    payload = {"run": build_info(rows, dataset_name), "decision": decision, "models": rows}
+    (out_dir / "comparison.json").write_text(json.dumps(payload, indent=2))
     flat = []
     for r in rows:
         row = {k: v for k, v in r.items() if k not in ("failures", "gated_metrics")}
