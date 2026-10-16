@@ -16,9 +16,51 @@ Derived columns:
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 
 import pandas as pd
+
+
+@dataclass
+class Dataset:
+    """The standard frame every dataset is cleaned into, plus how to use it.
+
+    train.py, models.py and fairness_eval.py only see this, so swapping datasets
+    only touches the ingest layer.
+    """
+
+    name: str
+    frame: pd.DataFrame
+    numeric_features: list[str]
+    categorical_features: list[str]
+    protected: list[str]  # audit columns: never model features
+    target: str = "approved"
+
+    @property
+    def features(self) -> list[str]:
+        return self.numeric_features + self.categorical_features
+
+
+DATASET_NAMES = ("german_credit", "hmda")
+
+
+def load_dataset(name: str) -> Dataset:
+    """Load a dataset by name: 'german_credit' or 'hmda'."""
+    if name == "german_credit":
+        return Dataset(
+            name=name,
+            frame=load(),
+            numeric_features=GERMAN_NUMERIC_FEATURES,
+            categorical_features=GERMAN_CATEGORICAL_FEATURES,
+            protected=["sex", "age_group"],
+        )
+    if name == "hmda":
+        from ml import ingest_hmda
+
+        return ingest_hmda.load_dataset()
+    raise ValueError(f"unknown dataset '{name}' (known: {', '.join(DATASET_NAMES)})")
+
 
 DEFAULT_PATH = Path(__file__).resolve().parents[1] / "data" / "raw" / "SouthGermanCredit.asc"
 
@@ -71,6 +113,28 @@ VALID_CODES = {
 
 # personal_status_sex code -> sex. Code 2 is deliberately absent (ambiguous).
 SEX_BY_STATUS_CODE = {1: "male", 3: "male", 4: "female"}
+
+# Model features. personal_status_sex (sex) and age are protected and excluded.
+GERMAN_NUMERIC_FEATURES = ["duration", "amount"]
+# Coded features whose codes are unordered categories -> one-hot encoded.
+GERMAN_CATEGORICAL_FEATURES = [
+    "status",
+    "credit_history",
+    "purpose",
+    "savings",
+    "employment_duration",
+    "installment_rate",
+    "other_debtors",
+    "present_residence",
+    "property",
+    "other_installment_plans",
+    "housing",
+    "number_credits",
+    "job",
+    "people_liable",
+    "telephone",
+    "foreign_worker",
+]
 
 AGE_BINS = [0, 25, 200]
 AGE_LABELS = ["<25", "25+"]
