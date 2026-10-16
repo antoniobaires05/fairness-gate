@@ -28,6 +28,9 @@ env:
 jobs:
   gate:
     runs-on: ubuntu-latest
+    env:
+      # true once the FAIRNESS_SQL_CONNECTION_STRING repository secret exists (see docs/azure_setup.md)
+      HAS_WAREHOUSE: ${{ secrets.FAIRNESS_SQL_CONNECTION_STRING != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -52,16 +55,26 @@ jobs:
           fi
 
       - name: Unit tests
-        run: pytest ml/tests
+        run: pytest ml/tests warehouse/tests
 
       - name: Ingest HMDA
         run: python -m ml.ingest_hmda
 
       - name: Champion vs challenger + fairness gate
+        id: gate
         # Trains every configured model, gates each, and exits with the champion's result.
         run: python -m ml.compare --dataset hmda ${CHAMPION:+--champion "$CHAMPION"}
         env:
           CHAMPION: ${{ inputs.champion }}
+
+      - name: Load audit into Azure SQL
+        # Runs for failing builds too (the dashboard shows both); skipped until the secret exists.
+        if: ${{ !cancelled() && env.HAS_WAREHOUSE == 'true' && hashFiles('ml/reports/hmda/comparison.json') != '' }}
+        run: |
+          sudo apt-get install -y -qq libltdl7 libkrb5-3 libgssapi-krb5-2 > /dev/null
+          python -m warehouse.etl --dataset hmda --init-schema
+        env:
+          FAIRNESS_SQL_CONNECTION_STRING: ${{ secrets.FAIRNESS_SQL_CONNECTION_STRING }}
 
       - name: Upload reports
         if: always()
