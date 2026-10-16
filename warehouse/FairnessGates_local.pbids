@@ -1,0 +1,13 @@
+{
+  "version": "0.1",
+  "connections": [
+    {
+      "details": {
+        "protocol": "tds",
+        "address": { "server": "(localdb)\\MSSQLLocalDB", "database": "FairnessGates" }
+      },
+      "options": {},
+      "mode": "Import"
+    }
+  ]
+}

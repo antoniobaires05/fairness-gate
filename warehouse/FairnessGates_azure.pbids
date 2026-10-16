@@ -1,0 +1,13 @@
+{
+  "version": "0.1",
+  "connections": [
+    {
+      "details": {
+        "protocol": "tds",
+        "address": { "server": "<server-name>.database.windows.net", "database": "FairnessGates" }
+      },
+      "options": {},
+      "mode": "Import"
+    }
+  ]
+}
