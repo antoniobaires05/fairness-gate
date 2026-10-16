@@ -10,9 +10,9 @@ The pipeline is the product; the model is intentionally simple.
 - Developer is on Windows (PowerShell, `.venv\Scripts\activate`). CI runs on ubuntu-latest.
 
 ## Layout
-- `ml/ingest.py` — the `Dataset` contract (cleaned frame + feature lists + protected columns) and `load_dataset(name)`; South German Credit cleaning.
+- `ml/ingest.py` — the `Dataset` contract (cleaned frame + feature lists + protected columns) and `load_dataset(name)`.
 - `ml/ingest_hmda.py` — HMDA cleaning (row scope, leakage removal, features, protected attributes). Every keep/drop decision is explained in `docs/hmda_data_decisions.md`. All dataset-specific logic lives in the ingest layer.
-- `ml/models.py` — common `CreditModel` interface and stand-in vendor models: `vendor_a_logreg` (baseline), `vendor_b_gbm`, `vendor_c_biased` (deliberately biased, for testing the gate), `vendor_a_mitigated` (Fairlearn ThresholdOptimizer).
+- `ml/models.py` — common `CreditModel` interface and stand-in vendor models: `vendor_a_logreg` (logistic regression, baseline champion), `vendor_b_gbm` (gradient-boosted trees), `vendor_a_mitigated` (Vendor A + Fairlearn ThresholdOptimizer).
 - `ml/train.py` — train one model on one dataset, fixed seed and split, write `ml/reports/<dataset>/<model>/predictions.csv`.
 - `ml/fairness_eval.py` — Fairlearn metrics per protected attribute with 95% confidence intervals → `fairness_report.json` next to the predictions; exit code 1 if any threshold is violated, printing which metric + attribute + groups failed.
 - `ml/confidence.py` — Wilson intervals for group rates, stratified bootstrap for gaps.
@@ -22,12 +22,14 @@ The pipeline is the product; the model is intentionally simple.
 - `warehouse/schema.sql` — star schema: `FactFairnessAudit` (grain: build x dataset x model x group x metric, with CI bounds), `FactModelEvaluation`, dimensions with surrogate keys, Power BI views.
 - `warehouse/etl.py` — loads a build's reports: dimensions first (MERGE), then facts replaced per build (no duplicates on re-run). Connection string from `FAIRNESS_SQL_CONNECTION_STRING` (GitHub Secret).
 - `docs/azure_setup.md`, `docs/powerbi_dashboard.md` — setup and dashboard build steps.
+- `docs/METHODOLOGY.md` — **read first when resuming**: full project record (pipeline, models and math, decisions, errors and fixes, commits, results, open items).
 - `pipeline/run_gate.js` — Node orchestration/summary (later).
 - `data/` — gitignored. Never commit datasets.
 
-## Datasets
-1. **First:** South German Credit (corrected, UCI #573). Target is credit risk (`kredit`: 1 good / 0 bad), used as an approval proxy. Sex is only available mixed into the personal-status field (`famges`) — document this limitation. Age is `alter`; bucket it (e.g. <25 / 25+).
-2. **Now:** HMDA, Delaware 2024 (one state, one year). Approval from `action_taken`; drop withdrawn, incomplete, purchased, and preapproval rows. Swapping datasets should only touch `ml/ingest.py`.
+## Dataset
+**HMDA, Delaware 2024** (one state, one year) is the only dataset. Approval from `action_taken`; drop withdrawn, incomplete, purchased, and preapproval rows. Adding or swapping a dataset should only touch the ingest layer.
+
+South German Credit was the early prototype and was removed from the pipeline on 2026-10-16 to keep the project to one dataset (it is still in git history). Do not reintroduce it.
 
 ## Metrics (per protected attribute)
 - `demographic_parity_difference`, `equalized_odds_difference` (Fairlearn) — gated.

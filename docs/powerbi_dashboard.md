@@ -8,15 +8,14 @@ Microsoft Store ("Power BI Desktop").
 **Quickest:** double-click a connection file in `warehouse/`:
 
 - `FairnessGates_local.pbids`: LocalDB on this machine (works now)
-- `FairnessGates_azure.pbids`: Azure SQL. First open it in a text editor and replace
-  `<server-name>` with your server name.
+- `FairnessGates_azure.pbids`: Azure SQL (`fairness-gates-ab.database.windows.net`).
 
 Power BI asks how to sign in. For **LocalDB** choose *Windows → Use my current
 credentials*. For **Azure** choose *Database* and enter `dashboard_reader` and its
 password (see `docs/azure_setup.md` §6).
 
 **Or manually:** Home, then **Get data → SQL Server**. Server is `(localdb)\MSSQLLocalDB`
-or `<server-name>.database.windows.net`, database `FairnessGates`, mode **Import**.
+or `fairness-gates-ab.database.windows.net`, database `FairnessGates`, mode **Import**.
 
 In the Navigator, tick all eight tables: `DimDate`, `DimRun`, `DimDataset`,
 `DimModel`, `DimGroup`, `DimMetric`, `FactFairnessAudit`, `FactModelEvaluation`.
