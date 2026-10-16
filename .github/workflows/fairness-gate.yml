@@ -18,7 +18,7 @@ permissions:
 env:
   # data/ is gitignored, so CI downloads the datasets.
   # South German Credit (corrected), UCI #573 -- static file, hash must match exactly.
-  GERMAN_URL: https://archive.ics.uci.edu/static/public/573/south+german+credit.zip
+  GERMAN_URL: https://archive.ics.uci.edu/static/public/573/south+german+credit+update.zip
   GERMAN_SHA256: 5f363343f356ca38a0236baab849e472846399b2176ccc5bd686483dd8a7562f
   # HMDA, Delaware 2024, CFPB Data Browser. CFPB can republish a year's data, so a hash
   # change is a warning (the log shows which file was used), not a failure.
