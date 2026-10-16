@@ -1,23 +1,49 @@
-# Fairness gate thresholds -- edit freely; ml/fairness_eval.py reads this at run time.
+# Fairness gate thresholds -- edit freely; ml/fairness_eval.py and ml/compare.py read
+# this at run time. Nothing here is hardcoded in Python.
 #
-# A gated metric FAILS the build when its value is greater than `max`.
-# Both metrics are differences between the best- and worst-treated group,
-# from 0 (identical treatment) to 1.
+# `defaults` apply to every dataset; a dataset's section under `datasets` overrides them.
 #
 # NOTE: 0.10 is a common starting point, not a legal or regulatory standard.
 # Set these with your client.
 
-# Columns in ml/reports/predictions.csv to audit.
-# Rows where the attribute is missing are excluded from that attribute's metrics
-# (South German Credit: sex is unknown for ~31% of rows -- see ml/ingest.py).
-attributes:
-  - sex
-  - age_group
+defaults:
+  gated_metrics:
+    # Gap in approval (selection) rate between the best- and worst-treated group.
+    demographic_parity_difference:
+      max: 0.10
+    # Larger of the gaps in true-positive and false-positive rate between groups.
+    equalized_odds_difference:
+      max: 0.10
 
-gated_metrics:
-  # Gap in approval (selection) rate between groups.
-  demographic_parity_difference:
-    max: 0.10
-  # Larger of the gaps in true-positive rate and false-positive rate between groups.
-  equalized_odds_difference:
-    max: 0.10
+  # What must be <= max to pass:
+  #   point_estimate -- the measured gap (default)
+  #   ci_upper       -- the upper end of its confidence interval (stricter: fails
+  #                     whenever a gap over the limit can't be ruled out)
+  gate_on: point_estimate
+  confidence_level: 0.95
+  bootstrap_samples: 1000   # resamples for the confidence interval of each gap
+
+  # Groups smaller than this are reported (with confidence intervals) but not gated.
+  min_group_size: 100
+  # Equalized odds compares rates among truly-approved and truly-denied applicants, so
+  # each gated group also needs at least this many of each.
+  min_outcome_count: 30
+
+  # Champion vs. challenger (ml/compare.py). The champion is the model in production;
+  # the build passes or fails on the champion's gate result. A challenger is
+  # recommended for promotion only if it passes the gate and its accuracy is within
+  # max_accuracy_drop of the champion's.
+  champion: vendor_a_logreg
+  challengers: [vendor_b_gbm, vendor_c_biased, vendor_a_mitigated]
+  max_accuracy_drop: 0.05
+
+datasets:
+  # South German Credit: 300 test rows, so groups are small; sex is unknown for ~31%.
+  german_credit:
+    attributes: [sex, age_group]
+    min_group_size: 20
+    min_outcome_count: 5
+
+  # HMDA, one state and year (see docs/hmda_data_decisions.md).
+  hmda:
+    attributes: [race, ethnicity, sex, age_group]

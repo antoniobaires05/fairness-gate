@@ -149,3 +149,95 @@ def test_report_is_one_record_per_metric_group_run(tmp_path):
     # 2 groups x 5 recorded metrics + 2 gated metrics
     assert len(records) == 2 * len(fe.RECORDED_METRICS) + len(fe.GATED_METRICS)
     assert len({r["run_id"] for r in records}) == 1
+
+
+# --- group-size rules, confidence intervals, sectioned config ----------------
+
+
+def uneven_preds():
+    """Groups a and b (40 rows each) are treated differently; c has only 3 rows."""
+    return pd.DataFrame({
+        "y_true": [1, 0] * 20 + [1, 0] * 20 + [1, 0, 1],
+        "y_pred": [1] * 40 + [1, 0, 0, 0] * 10 + [0, 0, 0],
+        "sex": ["a"] * 40 + ["b"] * 40 + ["c"] * 3,
+    })
+
+
+def gated(records, metric):
+    return next(r for r in records if r["gated"] and r["metric"] == metric)
+
+
+def test_small_groups_reported_but_not_gated():
+    cfg = {**SEX_ONLY, "min_group_size": 10, "bootstrap_samples": 200}
+    records, _ = fe.evaluate(uneven_preds(), cfg, run_id="t")
+    dpd = gated(records, "demographic_parity_difference")
+    assert dpd["groups_gated"] == ["a", "b"]
+    assert dpd["groups_skipped"] == ["c"]
+    assert dpd["value"] == pytest.approx(0.75)  # a=1.0 vs b=0.25; c (0.0) ignored
+    assert any(r["group"] == "c" and not r["gate_eligible"] for r in records if not r["gated"])
+
+
+def test_min_outcome_count_applies_to_equalized_odds_only():
+    cfg = {**SEX_ONLY, "min_group_size": 10, "min_outcome_count": 25, "bootstrap_samples": 200}
+    records, _ = fe.evaluate(uneven_preds(), cfg, run_id="t")
+    assert gated(records, "demographic_parity_difference")["passed"] is False
+    eod = gated(records, "equalized_odds_difference")  # each group has 20 of each outcome
+    assert eod["passed"] is None and eod["value"] is None
+
+
+def test_skip_printed_when_too_few_groups(capsys):
+    cfg = {**SEX_ONLY, "min_group_size": 50}
+    records, failures = fe.evaluate(uneven_preds(), cfg, run_id="t")
+    fe.print_summary(records, failures)
+    assert failures == []
+    assert "SKIP demographic_parity_difference on 'sex'" in capsys.readouterr().out
+
+
+def test_records_carry_confidence_intervals():
+    records, _ = fe.evaluate(uneven_preds(), {**SEX_ONLY, "bootstrap_samples": 200}, run_id="t")
+    for r in records:
+        if r["metric"] == "count" or (r["group"] == "c" and r["metric"] == "precision"):
+            assert r["ci_lower"] is None  # counts have no CI; c has no predicted approvals
+        elif r["value"] is not None:
+            assert r["ci_lower"] <= r["value"] + 1e-9 and r["value"] <= r["ci_upper"] + 1e-9
+    sel_b = next(r for r in records if r["group"] == "b" and r["metric"] == "selection_rate")
+    assert (sel_b["ci_lower"], sel_b["ci_upper"]) == pytest.approx(fe.wilson_interval(10, 40))
+
+
+def test_gate_on_ci_upper_is_stricter():
+    preds = uneven_preds()
+    base = {**SEX_ONLY, "min_group_size": 10, "bootstrap_samples": 200,
+            "gated_metrics": {"demographic_parity_difference": 0.76}}
+    _, point = fe.evaluate(preds, base, run_id="t")
+    _, upper = fe.evaluate(preds, {**base, "gate_on": "ci_upper"}, run_id="t")
+    assert point == [] and len(upper) == 1
+
+
+def test_records_name_dataset_and_model():
+    records, _ = fe.evaluate(fair_preds(), SEX_ONLY, run_id="t", dataset="hmda", model="m1")
+    assert {(r["dataset"], r["model"]) for r in records} == {("hmda", "m1")}
+
+
+def test_sectioned_config_resolves_per_dataset():
+    hmda = fe.load_thresholds(dataset="hmda")
+    german = fe.load_thresholds(dataset="german_credit")
+    assert hmda["attributes"] == ["race", "ethnicity", "sex", "age_group"]
+    assert hmda["min_group_size"] == 100 and german["min_group_size"] == 20
+    assert hmda["gated_metrics"] == german["gated_metrics"]
+
+
+def test_unknown_dataset_section_rejected():
+    with pytest.raises(fe.GateConfigError, match="no section"):
+        fe.load_thresholds(dataset="nope")
+
+
+@pytest.mark.parametrize("text, message", [
+    ("attributes: [sex]\ngated_metrics: {demographic_parity_difference: {max: 0.1}}\ngate_on: maybe", "gate_on"),
+    ("attributes: [sex]\ngated_metrics: {demographic_parity_difference: {max: 0.1}}\nmin_group_size: 0", "min_group_size"),
+    ("attributes: [sex]\ngated_metrics: {demographic_parity_difference: {max: 0.1}}\nconfidence_level: 95", "confidence_level"),
+])
+def test_bad_settings_rejected(tmp_path, text, message):
+    path = tmp_path / "t.yaml"
+    path.write_text(text)
+    with pytest.raises(fe.GateConfigError, match=message):
+        fe.load_thresholds(path)

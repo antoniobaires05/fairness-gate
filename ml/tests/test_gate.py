@@ -48,11 +48,13 @@ def test_biased_predictions_fail_the_gate(biased):
 
 
 def test_failure_names_metric_attribute_and_groups(biased):
-    out = biased[0].stdout
-    assert ("FAIL demographic_parity_difference on 'sex': 0.750 > max 0.100"
-            " -- selection_rate female=0.250 vs male=1.000") in out
-    assert ("FAIL equalized_odds_difference on 'sex': 1.000 > max 0.100"
-            " -- false_positive_rate female=0.000 vs male=1.000") in out
+    lines = [l for l in biased[0].stdout.splitlines() if l.startswith("FAIL")]
+    dpd = next(l for l in lines if "demographic_parity_difference" in l)
+    eod = next(l for l in lines if "equalized_odds_difference" in l)
+    assert dpd.startswith("FAIL demographic_parity_difference on 'sex': 0.750 > max 0.100 (95% CI ")
+    assert dpd.endswith("-- selection_rate female=0.250 vs male=1.000")
+    assert eod.startswith("FAIL equalized_odds_difference on 'sex': 1.000 > max 0.100 (95% CI ")
+    assert eod.endswith("-- false_positive_rate female=0.000 vs male=1.000")
 
 
 def test_only_the_biased_attribute_fails(biased):
