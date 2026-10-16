@@ -6,7 +6,7 @@ The pipeline is the product; the model is intentionally simple.
 
 ## Stack
 - Python 3.12+ (pinned numpy needs it), pandas, scikit-learn, Fairlearn, pytest. **No TensorFlow / TFMA / TF fairness libs.**
-- GitHub Actions for CI. Later: Azure Blob Storage, Azure SQL (star schema), Tableau.
+- GitHub Actions for CI. Azure SQL (star schema, `mssql-python` driver), Power BI Desktop for the dashboard (native Azure SQL; Tableau Public cannot connect to it). Later: Azure Blob Storage.
 - Developer is on Windows (PowerShell, `.venv\Scripts\activate`). CI runs on ubuntu-latest.
 
 ## Layout
@@ -19,6 +19,9 @@ The pipeline is the product; the model is intentionally simple.
 - `ml/compare.py` — champion vs. challenger: trains every configured model, gates each, recommends keep/promote; exit code = the champion's gate result.
 - `ml/fairness_thresholds.yaml` — client-editable thresholds, group-size rules, champion/challenger policy, per dataset (do not hardcode thresholds in Python).
 - `ml/tests/` — unit tests for ingest, models, metric and CI code (pytest). The gate itself is the exit code, not a pytest test.
+- `warehouse/schema.sql` — star schema: `FactFairnessAudit` (grain: build x dataset x model x group x metric, with CI bounds), `FactModelEvaluation`, dimensions with surrogate keys, Power BI views.
+- `warehouse/etl.py` — loads a build's reports: dimensions first (MERGE), then facts replaced per build (no duplicates on re-run). Connection string from `FAIRNESS_SQL_CONNECTION_STRING` (GitHub Secret).
+- `docs/azure_setup.md`, `docs/powerbi_dashboard.md` — setup and dashboard build steps.
 - `pipeline/run_gate.js` — Node orchestration/summary (later).
 - `data/` — gitignored. Never commit datasets.
 
@@ -35,4 +38,4 @@ The pipeline is the product; the model is intentionally simple.
 - Small, focused commits with clear messages (`feat:`, `fix:`, `test:`, `ci:`, `docs:`).
 - Fixed seeds everywhere (requirement 17: reproducibility). Pin versions in `ml/requirements.txt`.
 - No credentials in source — use GitHub Secrets / Azure Key Vault.
-- Run `pytest ml/tests` before committing.
+- Run `pytest ml/tests warehouse/tests` before committing.
