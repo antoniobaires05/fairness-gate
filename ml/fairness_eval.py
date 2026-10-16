@@ -240,7 +240,8 @@ def evaluate(preds: pd.DataFrame, thresholds: dict, run_id: str, dataset: str = 
         dpd_eligible = set(_eligible_groups(rows, groups, "demographic_parity_difference", cfg))
         for group, row in by_group.iterrows():
             in_group = groups == group
-            for metric, value in row.items():
+            for metric in RECORDED_METRICS:
+                value = row[metric]
                 lo, hi = _rate_interval(metric, rows.loc[in_group, "y_true"],
                                         rows.loc[in_group, "y_pred"], level)
                 records.append({**base, "group": str(group), "metric": metric,
