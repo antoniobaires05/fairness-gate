@@ -4,7 +4,7 @@
     {
       "details": {
         "protocol": "tds",
-        "address": { "server": "<server-name>.database.windows.net", "database": "FairnessGates" }
+        "address": { "server": "fairness-gates-ab.database.windows.net", "database": "FairnessGates" }
       },
       "options": {},
       "mode": "Import"
