@@ -114,14 +114,7 @@ build)". Use **Ctrl+F5** to skip the debugger. Under F5 the debugger pauses on
 
 ## 4. Data methodology
 
-### 4.1 South German Credit (removed)
-
-The first prototype dataset (UCI #573, 1,000 rows). It got the pipeline working end
-to end, but with only 300 test rows its confidence intervals were too wide to be
-useful, and two datasets made the project harder to explain. **Removed from the
-pipeline on 2026-10-16** (§16); the code is in git history before that date.
-
-### 4.2 HMDA, Delaware 2024 (the dataset)
+### 4.1 HMDA, Delaware 2024 (the dataset)
 
 Source: CFPB HMDA Data Browser,
 `https://ffiec.cfpb.gov/v2/data-browser-api/view/csv?states=DE&years=2024`
